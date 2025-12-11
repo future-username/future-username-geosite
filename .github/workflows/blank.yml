@@ -26,7 +26,7 @@ jobs:
           rm -rf dlc/data/*
           cp -r data/* dlc/data/
 
-      - name: Install Go 1.20 (supported by DLC)
+      - name: Install Go 1.20
         uses: actions/setup-go@v5
         with:
           go-version: "1.20"
@@ -47,15 +47,6 @@ jobs:
           cp geosite.dat publish/geosite.dat
           cd publish
           sha256sum geosite.dat > geosite.dat.sha256sum
-
-      - name: Release and upload assets
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          release_name: "Released on $(date +%Y%m%d%H%M)"
-          tag: "build-$(date +%Y%m%d%H%M)"
-          file_glob: true
-          file: ./publish/*
 
       - name: Push assets to release branch
         run: |
