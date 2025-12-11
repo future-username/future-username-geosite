@@ -2,47 +2,40 @@ name: Build geosite.dat
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "30 3,9,15,21 * * *"
   push:
     branches:
       - master
-    paths-ignore:
-      - "**/README.md"
+    paths:
+      - "data/**"
+      - ".github/workflows/build.yml"
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Set variables
-        run: |
-          echo "RELEASE_NAME=Released on $(date +%Y%m%d%H%M)" >> $GITHUB_ENV
-          echo "TAG_NAME=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
-        shell: bash
-
-      - name: Checkout repository
+      - name: Checkout your repo
         uses: actions/checkout@v4
 
-      - name: Install Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-
-      - name: Install domain-list-tools
+      - name: Clone domain-list-community
         run: |
-          pip install domain-list-tools
+          git clone https://github.com/v2fly/domain-list-community dlc
 
-      - name: Build geosite.dat from /data/
+      - name: Replace dlc/data with your data
         run: |
-          mkdir -p build
-          dlt --input data --output build
-          ls -la build
+          rm -rf dlc/data/*
+          cp -r data/* dlc/data/
+
+      - name: Build geosite.dat
+        run: |
+          cd dlc
+          ./generate-dat.py
+          ls -la
 
       - name: Prepare publish directory
         run: |
           mkdir -p publish
-          cp build/geosite.dat publish/geosite.dat
+          cp dlc/geosite.dat publish/geosite.dat
           cd publish
           sha256sum geosite.dat > geosite.dat.sha256sum
 
@@ -50,19 +43,19 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          release_name: ${{ env.RELEASE_NAME }}
-          tag: ${{ env.TAG_NAME }}
+          release_name: "Released on $(date +%Y%m%d%H%M)"
+          tag: "build-$(date +%Y%m%d%H%M)"
           file_glob: true
           file: ./publish/*
 
       - name: Push assets to release branch
         run: |
-          cd publish || exit 1
+          cd publish
           git init
           git config --local user.name "github-actions[bot]"
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b release
           git add .
-          git commit -m "${{ env.RELEASE_NAME }}"
+          git commit -m "Released on $(date +%Y%m%d%H%M)"
           git remote add origin "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
           git push -f -u origin release
