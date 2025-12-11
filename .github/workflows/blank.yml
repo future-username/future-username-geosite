@@ -14,22 +14,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
-      - name: Checkout repository
+      - name: Checkout your repository
         uses: actions/checkout@v4
 
-      - name: Install Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-
-      - name: Install geosite compiler
+      - name: Download DLC compiler
         run: |
-          pip install geosite-compiler
+          mkdir tools
+          curl -L -o tools/dlc https://github.com/v2fly/domain-list-community/releases/latest/download/dlc-linux-amd64
+          chmod +x tools/dlc
 
-      - name: Compile geosite.dat
+      - name: Clone domain-list-community
         run: |
-          geosite-compiler data geosite.dat
+          git clone https://github.com/v2fly/domain-list-community dlc
+
+      - name: Replace dlc/data with your data
+        run: |
+          rm -rf dlc/data/*
+          cp -r data/* dlc/data/
+
+      - name: Build geosite.dat
+        run: |
+          ./tools/dlc build --dir dlc --output geosite.dat
 
       - name: Prepare publish directory
         run: |
