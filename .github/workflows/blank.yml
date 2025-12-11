@@ -14,29 +14,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Go
-        uses: actions/setup-go@v4
+      - name: Install Python
+        uses: actions/setup-python@v5
         with:
-          go-version: "1.20"
+          python-version: "3.x"
 
-      - name: Clone v2fly/domain-list-community
+      - name: Install dlt (domain-list-tools)
         run: |
-          git clone https://github.com/v2fly/domain-list-community dlist
-
-      - name: Replace data folder with your files
-        run: |
-          rm -rf dlist/data/*
-          cp -r data/* dlist/data/
+          pip install domain-list-tools
 
       - name: Build geosite.dat
         run: |
-          cd dlist
-          go build ./...
-          ./dlc
+          mkdir build
+          dlt --input data --output build
 
       - name: Copy result
         run: |
-          cp dlist/geosite.dat geosite.dat
+          cp build/geosite.dat geosite.dat
 
       - name: Commit result
         uses: stefanzweifel/git-auto-commit-action@v4
