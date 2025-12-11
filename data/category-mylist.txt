@@ -3,3 +3,4 @@ domain:mos.ru
 domain:ktalk.ru
 regexp:^[^.]+\.ktalk\.ru$
 domain:gosuslugi.ru
+domain:2ip.ru
