@@ -1,5 +1,0 @@
-domain:mos.ru
-domain:vk.com
-domain:ktalk.ru
-regexp:^[^.]+\.ktalk\.ru$
-domain:2ip.ru
