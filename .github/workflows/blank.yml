@@ -34,7 +34,7 @@ jobs:
       - name: Build DLC compiler
         run: |
           cd dlc
-          go build -o dlc ./cmd/dlc
+          go build -o dlc .
 
       - name: Compile geosite.dat
         run: |
