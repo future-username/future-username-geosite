@@ -14,32 +14,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout your repository
+
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Clone domain-list-community
-        run: |
-          git clone https://github.com/v2fly/domain-list-community dlc
-
-      - name: Replace dlc/data with your data
-        run: |
-          rm -rf dlc/data/*
-          cp -r data/* dlc/data/
-
-      - name: Install Go 1.20
-        uses: actions/setup-go@v5
+      - name: Install Python
+        uses: actions/setup-python@v5
         with:
-          go-version: "1.20"
+          python-version: "3.x"
 
-      - name: Build DLC compiler
+      - name: Install geosite compiler
         run: |
-          cd dlc
-          go build -o dlc .
+          pip install geosite-compiler
 
       - name: Compile geosite.dat
         run: |
-          cd dlc
-          ./dlc build --output ../geosite.dat
+          geosite-compiler data geosite.dat
 
       - name: Prepare publish directory
         run: |
@@ -56,6 +46,6 @@ jobs:
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b release
           git add .
-          git commit -m "Released on $(date +%Y%m%d%H%M)"
+          git commit -m "Auto build $(date +%Y%m%d%H%M)"
           git remote add origin "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
           git push -f -u origin release
