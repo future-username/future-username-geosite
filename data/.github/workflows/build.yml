@@ -1,0 +1,45 @@
+name: Build geosite.dat
+
+on:
+  push:
+    paths:
+      - "data/**"
+      - ".github/workflows/build.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.20"
+
+      - name: Clone v2fly/domain-list-community
+        run: |
+          git clone https://github.com/v2fly/domain-list-community dlist
+
+      - name: Replace data folder with your files
+        run: |
+          rm -rf dlist/data/*
+          cp -r data/* dlist/data/
+
+      - name: Build geosite.dat
+        run: |
+          cd dlist
+          go build ./...
+          ./dlc
+
+      - name: Copy result
+        run: |
+          cp dlist/geosite.dat geosite.dat
+
+      - name: Commit result
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "Auto-build geosite.dat"
+          file_pattern: geosite.dat
