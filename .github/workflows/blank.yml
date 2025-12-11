@@ -19,14 +19,8 @@ jobs:
       - name: Build geosite.dat
         run: |
           mkdir -p publish
-
           cat > compiler.py << 'EOF'
-import struct, os, zlib
-
-# geosite.dat format used in Xray/V2Ray:
-# Every "entry" contains:
-# - name
-# - repeated domain rules (type + value)
+import struct, os
 
 def write_varint(n):
     out = b""
@@ -34,66 +28,57 @@ def write_varint(n):
         b = n & 0x7F
         n >>= 7
         if n:
-            out += struct.pack("B", b | 0x80)
+            out += bytes([b | 0x80])
         else:
-            out += struct.pack("B", b)
+            out += bytes([b])
             break
     return out
 
-def encode_string(field_number, text):
+def encode_string(field, text):
     b = text.encode()
-    out = struct.pack("B", field_number << 3 | 2)
+    out = bytes([(field << 3) | 2])
     out += write_varint(len(b))
     out += b
     return out
 
-def encode_domain(domain_type, value):
+def encode_domain(t, v):
     block = b""
-    block += struct.pack("B", 1 << 3 | 0)       # field 1: type
-    block += write_varint(domain_type)
-    block += encode_string(2, value)            # field 2: value
-    out = struct.pack("B", 2 << 3 | 2)          # field 2 inside entry
+    block += bytes([(1 << 3) | 0]) + write_varint(t)
+    block += encode_string(2, v)
+    out = bytes([(2 << 3) | 2])
     out += write_varint(len(block))
     out += block
     return out
 
 def encode_entry(name, rules):
     entry = encode_string(1, name)
-    for rule in rules:
-        entry += rule
-    wrapper = struct.pack("B", 1 << 3 | 2)
-    wrapper += write_varint(len(entry))
-    wrapper += entry
-    return wrapper
+    for r in rules:
+        entry += r
+    return bytes([(1 << 3) | 2]) + write_varint(len(entry)) + entry
 
 root = "data"
 out = b""
 
-for filename in sorted(os.listdir(root)):
-    if not filename.startswith("category-") or not filename.endswith(".txt"):
-        continue
-
-    cat = filename[9:-4]
-    rules = []
-    with open(os.path.join(root, filename)) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if line.startswith("domain:"):
-                rules.append(encode_domain(2, line[7:]))
-            elif line.startswith("full:"):
-                rules.append(encode_domain(0, line[5:]))
-            elif line.startswith("regexp:"):
-                rules.append(encode_domain(1, line[7:]))
-
-    out += encode_entry(cat, rules)
+for fn in sorted(os.listdir(root)):
+    if fn.startswith("category-") and fn.endswith(".txt"):
+        cat = fn[9:-4]
+        rules = []
+        with open(os.path.join(root, fn)) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if line.startswith("domain:"):
+                    rules.append(encode_domain(2, line[7:]))
+                elif line.startswith("full:"):
+                    rules.append(encode_domain(0, line[5:]))
+                elif line.startswith("regexp:"):
+                    rules.append(encode_domain(1, line[7:]))
+        out += encode_entry(cat, rules)
 
 with open("publish/geosite.dat", "wb") as f:
     f.write(out)
-
 EOF
-
           python3 compiler.py
 
       - name: Hash
@@ -109,6 +94,6 @@ EOF
           git config --local user.email "bot@github.com"
           git checkout -b release
           git add .
-          git commit -m "Auto build $(date +%Y%m%d%H%M)"
+          git commit -m "Build $(date +%Y%m%d%H%M)"
           git remote add origin "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
           git push -f -u origin release
