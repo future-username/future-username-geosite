@@ -14,27 +14,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout your repository
+      - name: Checkout your repo
         uses: actions/checkout@v4
 
-      - name: Download DLC compiler
+      - name: Clone Xray-core
         run: |
-          mkdir tools
-          curl -L -o tools/dlc https://github.com/v2fly/domain-list-community/releases/latest/download/dlc-linux-amd64
-          chmod +x tools/dlc
+          git clone https://github.com/XTLS/Xray-core xray
 
-      - name: Clone domain-list-community
+      - name: Replace geosite data with your data
         run: |
-          git clone https://github.com/v2fly/domain-list-community dlc
+          rm -rf xray/release/config/geosite/*
+          cp -r data/* xray/release/config/geosite/
 
-      - name: Replace dlc/data with your data
-        run: |
-          rm -rf dlc/data/*
-          cp -r data/* dlc/data/
+      - name: Build Xray tools (no Go 1.23 required)
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.20"
 
       - name: Build geosite.dat
         run: |
-          ./tools/dlc build --dir dlc --output geosite.dat
+          cd xray
+          go build -o xray ./main
+          ./xray tool geosite --datapath ./release/config --output ../geosite.dat
 
       - name: Prepare publish directory
         run: |
