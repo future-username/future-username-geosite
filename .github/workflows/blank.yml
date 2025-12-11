@@ -1,17 +1,27 @@
 name: Build geosite.dat
 
 on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 3,9,15,21 * * *"
   push:
-    paths:
-      - "data/**"
-      - ".github/workflows/build.yml"
+    branches:
+      - master
+    paths-ignore:
+      - "**/README.md"
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Set variables
+        run: |
+          echo "RELEASE_NAME=Released on $(date +%Y%m%d%H%M)" >> $GITHUB_ENV
+          echo "TAG_NAME=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install Python
@@ -19,21 +29,40 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Install dlt (domain-list-tools)
+      - name: Install domain-list-tools
         run: |
           pip install domain-list-tools
 
-      - name: Build geosite.dat
+      - name: Build geosite.dat from /data/
         run: |
-          mkdir build
+          mkdir -p build
           dlt --input data --output build
+          ls -la build
 
-      - name: Copy result
+      - name: Prepare publish directory
         run: |
-          cp build/geosite.dat geosite.dat
+          mkdir -p publish
+          cp build/geosite.dat publish/geosite.dat
+          cd publish
+          sha256sum geosite.dat > geosite.dat.sha256sum
 
-      - name: Commit result
-        uses: stefanzweifel/git-auto-commit-action@v4
+      - name: Release and upload assets
+        uses: svenstaro/upload-release-action@v2
         with:
-          commit_message: "Auto-build geosite.dat"
-          file_pattern: geosite.dat
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          release_name: ${{ env.RELEASE_NAME }}
+          tag: ${{ env.TAG_NAME }}
+          file_glob: true
+          file: ./publish/*
+
+      - name: Push assets to release branch
+        run: |
+          cd publish || exit 1
+          git init
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b release
+          git add .
+          git commit -m "${{ env.RELEASE_NAME }}"
+          git remote add origin "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
+          git push -f -u origin release
